@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>NOIPRO License Admin</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+    }
+    .card {
+      max-width: 800px;
+      margin: 10px auto;
+      background: #fff;
+      border-radius: 8px;
+      padding: 16px 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 6px 8px;
+      margin-top: 4px;
+      box-sizing: border-box;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      font-family: inherit;
+      font-size: 13px;
+    }
+    textarea {
+      min-height: 110px;
+    }
+    button {
+      margin-top: 14px;
+      padding: 8px 16px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .btn-primary {
+      background: #0d6efd;
+      color: white;
+    }
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+    .flex-row {
+      display: flex;
+      gap: 12px;
+    }
+    .flex-row > div {
+      flex: 1;
+    }
+    #app { display: none; }
+    #loginBox { max-width: 400px; margin: 60px auto; }
+    .hint {
+      font-size: 12px;
+      color: #666;
+    }
+    code {
+      background: #eee;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>NOIPRO License Admin (Lite)</h1>
+
+  <!-- Hộp đăng nhập đơn giản -->
+  <div id="loginBox" class="card">
+    <h3>Đăng nhập admin</h3>
+    <label for="adminPassword">Mật khẩu admin:</label>
+    <input type="password" id="adminPassword" />
+
+    <button class="btn-primary" onclick="doLogin()">Đăng nhập</button>
+    <p class="hint">
+      * Mật khẩu được kiểm tra ngay trên trình duyệt.  
+      Để đổi, sửa biến <code>ADMIN_PASSWORD</code> trong file <code>admin.html</code>.
+    </p>
+  </div>
+
+  <!-- Giao diện chính -->
+  <div id="app">
+    <div class="card">
+      <h3>1. Nhập thông tin giấy phép</h3>
+
+      <div class="flex-row">
+        <div>
+          <label for="machine">Machine ID (máy kích hoạt):</label>
+          <input id="machine" placeholder="VD: TEST123 hoặc mã máy thật" />
+        </div>
+        <div>
+          <label for="keyPlain">License key (người dùng nhập):</label>
+          <input id="keyPlain" placeholder="VD: ABC-123-XYZ" />
+        </div>
+      </div>
+
+      <div class="flex-row">
+        <div>
+          <label for="expire">Ngày hết hạn (YYYY-MM-DD):</label>
+          <input id="expire" placeholder="VD: 2099-12-31" />
+        </div>
+        <div>
+          <label for="status">Trạng thái:</label>
+          <select id="status">
+            <option value="active">active (đang hoạt động)</option>
+            <option value="blocked">blocked (đã khoá)</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn-primary" onclick="generateLicense()">Generate JSON</button>
+      <button class="btn-danger" onclick="clearForm()">Xoá trắng</button>
+
+      <p class="hint">
+        Gợi ý: Machine ID nên là mã cố định lấy từ phần mềm NOIPRO (ví dụ: hash ổ cứng, CPU...).
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>2. Kết quả</h3>
+
+      <label>SHA256(key):</label>
+      <input id="keyHash" readonly />
+
+      <label>Đoạn JSON để dán vào <code>data/licenses.json</code>:</label>
+      <textarea id="jsonSnippet" readonly></textarea>
+
+      <label>Link thử nhanh trên server:</label>
+      <input id="testUrl" readonly />
+
+      <p class="hint">
+        Bước tiếp theo: mở GitHub → file <code>data/licenses.json</code> → Edit →  
+        thêm/cập nhật entry có key là <code>SHA256(key)</code> với nội dung JSON trên, rồi Commit.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // ĐỔI MẬT KHẨU ADMIN TẠI ĐÂY
+    const ADMIN_PASSWORD = "Noily16122003";
+
+    function doLogin() {
+      const pw = document.getElementById("adminPassword").value;
+      if (pw === ADMIN_PASSWORD) {
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("app").style.display = "block";
+      } else {
+        alert("Sai mật khẩu admin!");
+      }
+    }
+
+    function clearForm() {
+      document.getElementById("machine").value = "";
+      document.getElementById("keyPlain").value = "";
+      document.getElementById("expire").value = "";
+      document.getElementById("status").value = "active";
+      document.getElementById("keyHash").value = "";
+      document.getElementById("jsonSnippet").value = "";
+      document.getElementById("testUrl").value = "";
+    }
+
+    // Hàm SHA-256 dùng Web Crypto API (có sẵn trong trình duyệt hiện đại)
+    async function sha256Hex(str) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(str);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+      return hashHex;
+    }
+
+    async function generateLicense() {
+      const machine = document.getElementById("machine").value.trim();
+      const keyPlain = document.getElementById("keyPlain").value.trim();
+      const expire = document.getElementById("expire").value.trim();
+      const status = document.getElementById("status").value;
+
+      if (!machine || !keyPlain || !expire) {
+        alert("Vui lòng nhập đủ Machine, Key và Expire!");
+        return;
+      }
+
+      const keyHash = await sha256Hex(keyPlain);
+      document.getElementById("keyHash").value = keyHash;
+
+      const jsonObj = {
+        machine: machine,
+        expire: expire,
+        status: status
+      };
+
+      const jsonSnippet =
+        `\"${keyHash}\": ` + JSON.stringify(jsonObj, null, 2);
+      document.getElementById("jsonSnippet").value = "{\n  " + jsonSnippet + "\n}";
+
+      const testUrl =
+        "https://noipro-license-server.vercel.app/api/check?machine=" +
+        encodeURIComponent(machine) +
+        "&key=" +
+        encodeURIComponent(keyPlain);
+
+      document.getElementById("testUrl").value = testUrl;
+    }
+  </script>
+</body>
+</html>
