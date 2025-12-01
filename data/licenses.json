@@ -1,6 +1,7 @@
 {
   "b5d4045c3f466fa91fe2cc6abe79232a1a57cdf104f7a26e716e0a1e2789df78": {
     "machine": "TEST123",
-    "expire": "2099-12-31"
+    "expire": "2099-12-31",
+    "status": "active"
   }
 }
