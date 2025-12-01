@@ -19,8 +19,6 @@ module.exports = (req, res) => {
   }
 
   const keyHash = sha256(key.trim());
-
-  // Tìm license theo KEY_HASH
   const record = licenses[keyHash];
 
   if (!record) {
@@ -31,7 +29,16 @@ module.exports = (req, res) => {
     });
   }
 
-  // So sánh machine dạng CHUỖI THƯỜNG, không hash
+  // Nếu có status = "blocked" thì chặn luôn
+  if (record.status === "blocked") {
+    return res.status(403).json({
+      status: "error",
+      reason: "LICENSE_BLOCKED",
+      message: "Giấy phép đã bị khoá"
+    });
+  }
+
+  // So sánh machine dạng chuỗi thường (không hash)
   if (record.machine !== machine.trim()) {
     return res.status(401).json({
       status: "error",
@@ -40,10 +47,9 @@ module.exports = (req, res) => {
     });
   }
 
-  // Hợp lệ
   return res.status(200).json({
     status: "success",
-    message: "License hợp lệ",
+    message: "Giấy phép hợp lệ",
     expire: record.expire
   });
 };
