@@ -2,7 +2,7 @@
 // Thêm hoặc cập nhật license vào file licenses.json trên GitHub
 // Cho phép gọi bằng POST (body JSON) hoặc GET (query) – đều phải có ?secret=ADMIN_SECRET
 
-const LICENSE_FILE_PATH = 'licenses.json';
+const LICENSE_FILE_PATH = 'data/licenses.json';
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
 const REPO = process.env.NOIPRO_GH_REPO;
