@@ -1,17 +1,10 @@
-{
-  "b5d4045c3f466fa91fe2cc6abe79232a1a57cdf104f7a26e716e0a1e2789df78": {
-    "machine": "TEST123",
-    "expire": "2099-12-31",
-    "status": "active"
-  }
-}
 [
   {
-  "6aaf66e6245a2fb5107abcc1d4d750f2cf86bb2fc814c142eb02b0c708865718": {
-  "machine": "2939B80D-657A-4E4A-8447-01551123E822",
-  "expire": "2026-01-20",
-  "status": "active"
-}
-}
+    "license_key_hash": "6aaf66e6245a2fb5107abcc1d4d750f2cf86bb2fc814c142eb02b0c708865718",
+    "machine_id": "2939B80D-657A-4E4A-8447-01551123E822",
+    "expiry": "2026-01-20",
+    "status": "active"
+  }
 ]
+
 
