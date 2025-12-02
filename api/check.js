@@ -2,7 +2,7 @@
 // Kiểm tra license trong licenses.json trên GitHub
 // Client (Noipro) sẽ gọi: /api/check?key=...&machineId=...
 
-const LICENSE_FILE_PATH = 'licenses.json';
+const LICENSE_FILE_PATH = 'data/licenses.json';
 
 const REPO = process.env.NOIPRO_GH_REPO;
 const TOKEN = process.env.NOIPRO_GH_TOKEN;
