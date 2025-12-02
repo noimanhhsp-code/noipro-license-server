@@ -1,150 +1,182 @@
-// /api/add.js
-// API dùng để thêm hoặc cập nhật license vào file data/licenses.json trên GitHub
+// api/add.js
+// Thêm hoặc cập nhật license vào file licenses.json trên GitHub
+// Chỉ gọi được nếu có ?secret=ADMIN_SECRET
 
-export default async function handler(req, res) {
-  try {
-    // Chỉ cho phép POST
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "Chỉ hỗ trợ phương thức POST" });
-    }
+const LICENSE_FILE_PATH = 'licenses.json'; // đường dẫn file trong repo NOIPRO_GH_REPO
 
-    // --------- ĐỌC BODY THÔ & PARSE JSON (Vercel Node không có req.body) ----------
-    let rawBody = "";
-    await new Promise((resolve, reject) => {
-      req.on("data", (chunk) => {
-        rawBody += chunk;
-      });
-      req.on("end", resolve);
-      req.on("error", reject);
-    });
+// Lấy env
+const ADMIN_SECRET = process.env.ADMIN_SECRET;
+const REPO = process.env.NOIPRO_GH_REPO;      // ví dụ "nguyenvannoi/noipro-license-data"
+const TOKEN = process.env.NOIPRO_GH_TOKEN;
 
-    let body = {};
-    try {
-      body = JSON.parse(rawBody || "{}");
-    } catch (e) {
-      return res.status(400).json({ error: "Body không phải JSON hợp lệ" });
-    }
-    // ------------------------------------------------------------------------------
+// Header chung gọi GitHub API
+const ghHeaders = {
+  'Accept': 'application/vnd.github+json',
+  'Authorization': `Bearer ${TOKEN}`,
+  'X-GitHub-Api-Version': '2022-11-28'
+};
 
-    // Lấy dữ liệu gửi từ admin.html
-    const {
-      secret,
-      machine_id,
-      license_key_hash,
-      expiry,
-      status,
-    } = body || {};
+// Đọc body JSON từ request (POST)
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
 
-    // Kiểm tra đủ dữ liệu chưa
-    if (!secret || !machine_id || !license_key_hash || !expiry || !status) {
-      return res.status(400).json({ error: "Thiếu tham số bắt buộc" });
-    }
-
-    // Bảo vệ: chỉ admin có SECRET đúng mới được ghi
-    if (secret !== process.env.ADMIN_SECRET) {
-      return res.status(403).json({ error: "Sai ADMIN_SECRET" });
-    }
-
-    const repo = process.env.NOIPRO_GH_REPO || "noimanhhsp-code/noipro-license-server";
-    const token = process.env.NOIPRO_GH_TOKEN;
-
-    if (!repo || !token) {
-      return res.status(500).json({
-        error: "Thiếu NOIPRO_GH_REPO hoặc NOIPRO_GH_TOKEN trong environment",
-      });
-    }
-
-    const [owner, repoName] = repo.split("/");
-
-    const headers = {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "noipro-license-server",
-    };
-
-    const filePath = "data/licenses.json";
-    const url = `https://api.github.com/repos/${owner}/${repoName}/contents/${filePath}`;
-
-    // 1. Lấy nội dung licenses.json hiện tại trên GitHub
-    const fileResp = await fetch(url, { headers });
-
-    if (!fileResp.ok) {
-      const text = await fileResp.text();
-      return res.status(500).json({
-        error: "Không đọc được licenses.json từ GitHub",
-        detail: text,
-      });
-    }
-
-    const fileJson = await fileResp.json();
-    const sha = fileJson.sha; // cần để PUT cập nhật
-    const oldContent = Buffer.from(fileJson.content, "base64").toString("utf8");
-
-    let licenses = [];
-    try {
-      licenses = JSON.parse(oldContent);
-      if (!Array.isArray(licenses)) {
-        licenses = [];
+    req.on('data', chunk => {
+      data += chunk;
+      if (data.length > 1e6) {
+        // tránh DOS
+        req.destroy();
+        reject(new Error('Body too large'));
       }
-    } catch (e) {
-      // Nếu parse lỗi thì coi như file rỗng
-      licenses = [];
-    }
-
-    // 2. Tạo bản ghi mới
-    const newEntry = {
-      license_key_hash,
-      machine_id,
-      expiry,
-      status,
-    };
-
-    // Nếu đã tồn tại cùng machine_id + license_key_hash thì cập nhật, không thì thêm mới
-    const idx = licenses.findIndex(
-      (x) =>
-        x.machine_id === machine_id &&
-        x.license_key_hash === license_key_hash
-    );
-
-    if (idx >= 0) {
-      licenses[idx] = newEntry;
-    } else {
-      licenses.push(newEntry);
-    }
-
-    const newContent = JSON.stringify(licenses, null, 2);
-    const newContentBase64 = Buffer.from(newContent, "utf8").toString("base64");
-
-    // 3. Ghi ngược lại lên GitHub bằng API PUT
-    const updateResp = await fetch(url, {
-      method: "PUT",
-      headers,
-      body: JSON.stringify({
-        message: "Add / update license from NOIPRO Admin",
-        content: newContentBase64,
-        sha, // sha cũ để GitHub biết là cập nhật
-      }),
     });
 
-    if (!updateResp.ok) {
-      const text = await updateResp.text();
-      return res.status(500).json({
-        error: "Không cập nhật được licenses.json lên GitHub",
-        detail: text,
-      });
+    req.on('end', () => {
+      try {
+        const json = data ? JSON.parse(data) : {};
+        resolve(json);
+      } catch (err) {
+        reject(err);
+      }
+    });
+
+    req.on('error', reject);
+  });
+}
+
+// Đọc file licenses.json từ GitHub
+async function fetchLicensesFromGitHub() {
+  const url = `https://api.github.com/repos/${REPO}/contents/${LICENSE_FILE_PATH}`;
+
+  const resp = await fetch(url, { headers: ghHeaders });
+
+  if (resp.status === 404) {
+    // Chưa có file → coi như rỗng
+    return { licenses: [], sha: null };
+  }
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`GitHub GET failed: ${resp.status} - ${text}`);
+  }
+
+  const data = await resp.json();
+  const content = Buffer.from(data.content, data.encoding || 'base64').toString('utf8');
+
+  let parsed;
+  try {
+    parsed = content ? JSON.parse(content) : { licenses: [] };
+  } catch (e) {
+    parsed = { licenses: [] };
+  }
+
+  const licenses = Array.isArray(parsed.licenses) ? parsed.licenses : [];
+  return { licenses, sha: data.sha };
+}
+
+// Ghi lại file licenses.json lên GitHub
+async function saveLicensesToGitHub(licenses, sha) {
+  const url = `https://api.github.com/repos/${REPO}/contents/${LICENSE_FILE_PATH}`;
+
+  const jsonContent = JSON.stringify({ licenses }, null, 2);
+  const base64Content = Buffer.from(jsonContent, 'utf8').toString('base64');
+
+  const body = {
+    message: 'Update licenses.json via Noipro license server',
+    content: base64Content
+  };
+
+  if (sha) {
+    // update file
+    body.sha = sha;
+  }
+
+  const resp = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      ...ghHeaders,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`GitHub PUT failed: ${resp.status} - ${text}`);
+  }
+
+  return resp.json();
+}
+
+module.exports = async (req, res) => {
+  try {
+    if (req.method !== 'POST') {
+      res.setHeader('Allow', 'POST');
+      return res.status(405).json({ ok: false, error: 'Method not allowed' });
     }
 
-    const updateJson = await updateResp.json();
+    if (!ADMIN_SECRET || !REPO || !TOKEN) {
+      return res.status(500).json({ ok: false, error: 'Missing environment variables' });
+    }
+
+    // Kiểm tra admin secret trên URL: /api/add?secret=...
+    const { secret } = req.query || {};
+    if (!secret || secret !== ADMIN_SECRET) {
+      return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    }
+
+    // Đọc dữ liệu JSON từ body
+    const body = await readJsonBody(req);
+    const { key, machineId, expiresAt, note } = body;
+
+    if (!key) {
+      return res.status(400).json({ ok: false, error: 'Missing field: key' });
+    }
+
+    // Đọc file licenses.json từ GitHub
+    const { licenses, sha } = await fetchLicensesFromGitHub();
+
+    const nowIso = new Date().toISOString();
+    const idx = licenses.findIndex(lc => lc.key === key);
+
+    let mode;
+    let license;
+
+    if (idx === -1) {
+      // Tạo mới
+      license = {
+        key,
+        machineId: machineId || '',
+        expiresAt: expiresAt || '',
+        note: note || '',
+        createdAt: nowIso,
+        updatedAt: nowIso
+      };
+      licenses.push(license);
+      mode = 'CREATED';
+    } else {
+      // Cập nhật
+      const old = licenses[idx];
+      license = {
+        ...old,
+        machineId: machineId !== undefined ? machineId : old.machineId,
+        expiresAt: expiresAt !== undefined ? expiresAt : old.expiresAt,
+        note: note !== undefined ? note : old.note,
+        updatedAt: nowIso
+      };
+      licenses[idx] = license;
+      mode = 'UPDATED';
+    }
+
+    // Ghi ngược lên GitHub
+    await saveLicensesToGitHub(licenses, sha);
 
     return res.status(200).json({
-      success: true,
-      message: "Đã thêm/cập nhật license vào GitHub!",
-      commit: updateJson.commit && updateJson.commit.sha,
+      ok: true,
+      mode,
+      license
     });
   } catch (err) {
-    console.error("API /api/add error:", err);
-    return res.status(500).json({ error: "Lỗi máy chủ", detail: String(err) });
+    console.error('add.js error:', err);
+    return res.status(500).json({ ok: false, error: err.message || 'Internal server error' });
   }
-}
+};
