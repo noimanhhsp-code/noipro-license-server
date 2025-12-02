@@ -1,14 +1,12 @@
-[
-  {
-    "license_key_hash": "6aaf66e6245a2fb5107abcc1d4d750f2cf86bb2fc814c142eb02b0c708865718",
-    "machine_id": "2939B80D-657A-4E4A-8447-01551123E822",
-    "expiry": "2026-01-20",
-    "status": "active"
-  },
-  {
-  "license_key_hash": "34b6fa3d832e30f0ca44439a7d3f4d8d885185a4ab2fb65ebaf82afc23168c16",
-  "machine_id": "2939B80D-657A-4E4A-8447-01551123E822",
-  "expiry": "2026-01-20",
-  "status": "active"
+{
+  "licenses": [
+    {
+      "key": "ABC-123-XYZ",
+      "machineId": "PC-LOP8A",
+      "expiresAt": "2026-12-31",
+      "note": "Test",
+      "createdAt": "2025-12-02T23:49:25.722Z",
+      "updatedAt": "2025-12-02T23:49:25.722Z"
+    }
+  ]
 }
-]
