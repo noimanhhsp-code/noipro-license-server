@@ -1,22 +1,19 @@
 // api/add.js
 // Thêm hoặc cập nhật license vào file licenses.json trên GitHub
-// Chỉ gọi được nếu có ?secret=ADMIN_SECRET
+// Cho phép gọi bằng POST (body JSON) hoặc GET (query) – đều phải có ?secret=ADMIN_SECRET
 
-const LICENSE_FILE_PATH = 'licenses.json'; // đường dẫn file trong repo NOIPRO_GH_REPO
+const LICENSE_FILE_PATH = 'licenses.json';
 
-// Lấy env
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
-const REPO = process.env.NOIPRO_GH_REPO;      // ví dụ "nguyenvannoi/noipro-license-data"
+const REPO = process.env.NOIPRO_GH_REPO;
 const TOKEN = process.env.NOIPRO_GH_TOKEN;
 
-// Header chung gọi GitHub API
 const ghHeaders = {
   'Accept': 'application/vnd.github+json',
   'Authorization': `Bearer ${TOKEN}`,
   'X-GitHub-Api-Version': '2022-11-28'
 };
 
-// Đọc body JSON từ request (POST)
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
     let data = '';
@@ -24,16 +21,15 @@ function readJsonBody(req) {
     req.on('data', chunk => {
       data += chunk;
       if (data.length > 1e6) {
-        // tránh DOS
         req.destroy();
         reject(new Error('Body too large'));
       }
     });
 
     req.on('end', () => {
+      if (!data) return resolve({});
       try {
-        const json = data ? JSON.parse(data) : {};
-        resolve(json);
+        resolve(JSON.parse(data));
       } catch (err) {
         reject(err);
       }
@@ -43,14 +39,11 @@ function readJsonBody(req) {
   });
 }
 
-// Đọc file licenses.json từ GitHub
 async function fetchLicensesFromGitHub() {
   const url = `https://api.github.com/repos/${REPO}/contents/${LICENSE_FILE_PATH}`;
-
   const resp = await fetch(url, { headers: ghHeaders });
 
   if (resp.status === 404) {
-    // Chưa có file → coi như rỗng
     return { licenses: [], sha: null };
   }
 
@@ -65,7 +58,7 @@ async function fetchLicensesFromGitHub() {
   let parsed;
   try {
     parsed = content ? JSON.parse(content) : { licenses: [] };
-  } catch (e) {
+  } catch {
     parsed = { licenses: [] };
   }
 
@@ -73,7 +66,6 @@ async function fetchLicensesFromGitHub() {
   return { licenses, sha: data.sha };
 }
 
-// Ghi lại file licenses.json lên GitHub
 async function saveLicensesToGitHub(licenses, sha) {
   const url = `https://api.github.com/repos/${REPO}/contents/${LICENSE_FILE_PATH}`;
 
@@ -84,11 +76,7 @@ async function saveLicensesToGitHub(licenses, sha) {
     message: 'Update licenses.json via Noipro license server',
     content: base64Content
   };
-
-  if (sha) {
-    // update file
-    body.sha = sha;
-  }
+  if (sha) body.sha = sha;
 
   const resp = await fetch(url, {
     method: 'PUT',
@@ -109,8 +97,8 @@ async function saveLicensesToGitHub(licenses, sha) {
 
 module.exports = async (req, res) => {
   try {
-    if (req.method !== 'POST') {
-      res.setHeader('Allow', 'POST');
+    if (req.method !== 'POST' && req.method !== 'GET') {
+      res.setHeader('Allow', 'POST, GET');
       return res.status(405).json({ ok: false, error: 'Method not allowed' });
     }
 
@@ -118,21 +106,31 @@ module.exports = async (req, res) => {
       return res.status(500).json({ ok: false, error: 'Missing environment variables' });
     }
 
-    // Kiểm tra admin secret trên URL: /api/add?secret=...
     const { secret } = req.query || {};
     if (!secret || secret !== ADMIN_SECRET) {
       return res.status(401).json({ ok: false, error: 'Unauthorized' });
     }
 
-    // Đọc dữ liệu JSON từ body
-    const body = await readJsonBody(req);
+    let body;
+    if (req.method === 'POST') {
+      body = await readJsonBody(req);
+    } else {
+      // GET: đọc luôn từ query cho dễ test
+      const { key, machineId, machine, expiresAt, note } = req.query || {};
+      body = {
+        key,
+        machineId: machineId || machine,
+        expiresAt,
+        note
+      };
+    }
+
     const { key, machineId, expiresAt, note } = body;
 
     if (!key) {
       return res.status(400).json({ ok: false, error: 'Missing field: key' });
     }
 
-    // Đọc file licenses.json từ GitHub
     const { licenses, sha } = await fetchLicensesFromGitHub();
 
     const nowIso = new Date().toISOString();
@@ -142,7 +140,6 @@ module.exports = async (req, res) => {
     let license;
 
     if (idx === -1) {
-      // Tạo mới
       license = {
         key,
         machineId: machineId || '',
@@ -154,7 +151,6 @@ module.exports = async (req, res) => {
       licenses.push(license);
       mode = 'CREATED';
     } else {
-      // Cập nhật
       const old = licenses[idx];
       license = {
         ...old,
@@ -167,14 +163,9 @@ module.exports = async (req, res) => {
       mode = 'UPDATED';
     }
 
-    // Ghi ngược lên GitHub
     await saveLicensesToGitHub(licenses, sha);
 
-    return res.status(200).json({
-      ok: true,
-      mode,
-      license
-    });
+    return res.status(200).json({ ok: true, mode, license });
   } catch (err) {
     console.error('add.js error:', err);
     return res.status(500).json({ ok: false, error: err.message || 'Internal server error' });
