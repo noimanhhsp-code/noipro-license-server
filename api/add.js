@@ -8,6 +8,24 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: "Chỉ hỗ trợ phương thức POST" });
     }
 
+    // --------- ĐỌC BODY THÔ & PARSE JSON (Vercel Node không có req.body) ----------
+    let rawBody = "";
+    await new Promise((resolve, reject) => {
+      req.on("data", (chunk) => {
+        rawBody += chunk;
+      });
+      req.on("end", resolve);
+      req.on("error", reject);
+    });
+
+    let body = {};
+    try {
+      body = JSON.parse(rawBody || "{}");
+    } catch (e) {
+      return res.status(400).json({ error: "Body không phải JSON hợp lệ" });
+    }
+    // ------------------------------------------------------------------------------
+
     // Lấy dữ liệu gửi từ admin.html
     const {
       secret,
@@ -15,7 +33,7 @@ export default async function handler(req, res) {
       license_key_hash,
       expiry,
       status,
-    } = req.body || {};
+    } = body || {};
 
     // Kiểm tra đủ dữ liệu chưa
     if (!secret || !machine_id || !license_key_hash || !expiry || !status) {
@@ -27,7 +45,7 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: "Sai ADMIN_SECRET" });
     }
 
-    const repo = process.env.NOIPRO_GH_REPO;
+    const repo = process.env.NOIPRO_GH_REPO || "noimanhhsp-code/noipro-license-server";
     const token = process.env.NOIPRO_GH_TOKEN;
 
     if (!repo || !token) {
@@ -97,7 +115,7 @@ export default async function handler(req, res) {
     }
 
     const newContent = JSON.stringify(licenses, null, 2);
-    const newContentBase64 = Buffer.from(newContent).toString("base64");
+    const newContentBase64 = Buffer.from(newContent, "utf8").toString("base64");
 
     // 3. Ghi ngược lại lên GitHub bằng API PUT
     const updateResp = await fetch(url, {
