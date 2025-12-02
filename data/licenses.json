@@ -5,10 +5,13 @@
     "status": "active"
   }
 }
-{
+[
+  {
   "6aaf66e6245a2fb5107abcc1d4d750f2cf86bb2fc814c142eb02b0c708865718": {
   "machine": "2939B80D-657A-4E4A-8447-01551123E822",
   "expire": "2026-01-20",
   "status": "active"
 }
 }
+]
+
