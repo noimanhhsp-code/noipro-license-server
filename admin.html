@@ -1,343 +1,446 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <title>NOIPRO License Admin (Lite)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <title>NOIPRO License Admin</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
+    * { box-sizing: border-box; }
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       margin: 0;
-      padding: 0;
-      background: #f5f5f5;
+      padding: 20px;
+      background: #f3f4f6;
+      color: #111827;
     }
-    header {
-      background: #1976d2;
-      color: #fff;
-      padding: 12px 20px;
+    h1 {
+      margin: 0 0 10px;
+      text-align: center;
+      font-size: 24px;
+      color: #1f2937;
     }
-    header h1 {
-      margin: 0;
-      font-size: 20px;
-    }
-    main {
-      max-width: 900px;
-      margin: 20px auto 40px;
+    .card {
+      max-width: 1100px;
+      margin: 0 auto;
       background: #fff;
-      border-radius: 6px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-      padding: 20px 24px 28px;
+      padding: 18px;
+      border-radius: 14px;
+      box-shadow: 0 18px 40px rgba(15,23,42,0.12);
     }
-    h2 {
-      margin-top: 0;
-      font-size: 18px;
-      border-left: 4px solid #1976d2;
-      padding-left: 8px;
-    }
-    .field-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 16px;
-      margin-bottom: 12px;
-    }
-    .field {
-      flex: 1 1 250px;
-      min-width: 220px;
-    }
-    label {
-      display: block;
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-    input[type="text"],
-    input[type="date"],
-    input[type="password"],
-    select,
-    textarea {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 6px 8px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-      font-size: 13px;
-    }
-    textarea {
-      min-height: 120px;
-      resize: vertical;
-      font-family: "Consolas","Courier New",monospace;
-    }
-    .hint {
-      font-size: 11px;
-      color: #666;
-      margin-top: 2px;
-    }
-    .buttons {
-      margin-top: 10px;
+    .row {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+    .full { flex: 1 1 100%; }
+    .half { flex: 1 1 calc(50% - 10px); }
+    .third { flex: 1 1 calc(33.3% - 10px); }
+    label {
+      font-size: 12px;
+      color: #4b5563;
+      display: block;
+      margin-bottom: 2px;
+    }
+    input, select {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      padding: 7px 9px;
+      font-size: 13px;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px #2563eb33;
     }
     button {
+      border-radius: 8px;
       border: none;
-      border-radius: 4px;
-      padding: 8px 14px;
+      padding: 7px 12px;
       font-size: 13px;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
-    button.primary {
-      background: #1976d2;
-      color: #fff;
+    button.primary { background: #2563eb; color: #fff; }
+    button.secondary { background: #e5e7eb; color: #111827; }
+    button.danger { background: #dc2626; color: #fff; }
+    button.warn { background: #f97316; color: #fff; }
+    button:disabled { opacity: .6; cursor: default; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      margin-left: 6px;
     }
-    button.secondary {
-      background: #e0e0e0;
-      color: #333;
-    }
-    button:disabled {
-      opacity: 0.6;
-      cursor: default;
-    }
-    .status {
-      margin-top: 10px;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
       font-size: 13px;
     }
-    .status.ok {
-      color: #2e7d32;
+    th, td {
+      padding: 6px 7px;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
     }
-    .status.err {
-      color: #c62828;
+    th {
+      background: #f9fafb;
+      font-weight: 600;
+      color: #4b5563;
     }
-    .json-box {
-      margin-top: 14px;
+    tbody tr:nth-child(even) {
+      background: #f9fafb;
     }
-    .json-box h3 {
-      font-size: 15px;
-      margin: 0 0 4px;
+    .statusbar {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #6b7280;
     }
-    footer {
-      text-align: center;
+    .chip {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
       font-size: 11px;
-      color: #777;
-      margin-bottom: 20px;
+      background: #ecfdf5;
+      color: #15803d;
+    }
+    .chip.expired {
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+    .chip.revoked {
+      background: #fef2f2;
+      color: #7f1d1d;
+      border: 1px solid #fecaca;
+    }
+    .right { text-align: right; }
+
+    @media (max-width: 768px) {
+      .half, .third { flex: 1 1 100%; }
+      table { font-size: 12px; }
     }
   </style>
 </head>
 <body>
-  <header>
-    <h1>NOIPRO License Admin (Lite)</h1>
-  </header>
+<div class="card">
+  <h1>
+    NOIPRO License Admin
+    <span class="badge">Online</span>
+  </h1>
 
-  <main>
-    <h2>1. Nhập thông tin giấy phép</h2>
-
-    <div class="field-row">
-      <div class="field">
-        <label for="machine-id">Machine ID (máy kích hoạt):</label>
-        <input id="machine-id" type="text" placeholder="VD: 2939B80D-657A-4E4A-8447-01551123E822" />
-        <div class="hint">Copy từ phần mềm NOIPRO (nút "Copy mã máy").</div>
-      </div>
-
-      <div class="field">
-        <label for="license-key">License key (người dùng nhập):</label>
-        <input id="license-key" type="text" placeholder="VD: ABC-123-XYZ hoặc Vannoi80" />
-        <div class="hint">Đây là mã bạn gửi cho giáo viên để nhập vào ô "Mã kích hoạt".</div>
-      </div>
+  <!-- cấu hình -->
+  <div class="row">
+    <div class="half">
+      <label>Admin secret (ADMIN_SECRET trên Vercel)</label>
+      <input id="secret" type="password" placeholder="Nhập ADMIN_SECRET">
     </div>
-
-    <div class="field-row">
-      <div class="field">
-        <label for="expiry">Ngày hết hạn (YYYY-MM-DD):</label>
-        <input id="expiry" type="date" />
-        <div class="hint">Ví dụ: 2026-01-20. Nếu muốn trọn đời có thể đặt rất xa (2099-12-31).</div>
-      </div>
-
-      <div class="field">
-        <label for="status">Trạng thái:</label>
-        <select id="status">
-          <option value="active">active (đang hoạt động)</option>
-          <option value="revoked">revoked (đã khoá)</option>
-        </select>
-        <div class="hint">Có thể chỉnh về "revoked" nếu muốn tạm ngưng license.</div>
-      </div>
+    <div class="half">
+      <label>API base URL</label>
+      <input id="baseUrl" type="text"
+             value="https://noipro-license-server.vercel.app">
     </div>
-
-    <div class="field-row">
-      <div class="field">
-        <label for="admin-secret">Admin secret (bảo vệ ghi dữ liệu):</label>
-        <input id="admin-secret" type="password" placeholder="Nhập chuỗi bí mật trùng với ADMIN_SECRET" />
-        <div class="hint">
-          Phải trùng với biến môi trường <b>ADMIN_SECRET</b> trong Vercel.<br/>
-          (Không gõ đúng thì server sẽ báo "Sai ADMIN_SECRET").
-        </div>
-      </div>
+  </div>
+  <div class="row">
+    <div class="third">
+      <button id="btnLoad" class="primary">🔄 Tải danh sách</button>
     </div>
-
-    <div class="buttons">
-      <button id="btn-generate" class="secondary" type="button">Tạo JSON xem trước</button>
-      <button id="btn-send" class="primary" type="button">Ghi license lên GitHub (gọi /api/add)</button>
-      <button id="btn-clear" class="secondary" type="button">Xoá trắng</button>
+    <div class="third">
+      <label>Tìm kiếm</label>
+      <input id="search" type="text" placeholder="Key / máy / ghi chú...">
     </div>
-
-    <div id="status-line" class="status"></div>
-
-    <div class="json-box">
-      <h3>2. JSON (dùng để lưu trong <code>data/licenses.json</code>)</h3>
-      <textarea id="json-output" readonly></textarea>
-      <div class="hint">
-        Đây chỉ là phần xem trước. Khi bấm <b>"Ghi license lên GitHub"</b>, trang sẽ gọi API
-        <code>/api/add</code> để tự động thêm/cập nhật bản ghi vào <code>data/licenses.json</code>.
-      </div>
+    <div class="third">
+      <label>Sắp xếp</label>
+      <select id="sort">
+        <option value="key">Theo key</option>
+        <option value="machineId">Theo máy</option>
+        <option value="expiresAt">Theo ngày hết hạn</option>
+        <option value="updatedAt">Theo ngày cập nhật</option>
+      </select>
     </div>
-  </main>
+  </div>
 
-  <footer>
-    NOIPRO License Server &copy; 2025 – Quản lý kích hoạt bản quyền NOIPRO.
-  </footer>
+  <hr style="border:none;border-top:1px solid #e5e7eb;margin:10px 0;">
 
-  <script>
-    // Hàm băm SHA-256 trả về chuỗi hex (giống python hashlib.sha256().hexdigest())
-    async function sha256Hex(str) {
-      const enc = new TextEncoder();
-      const data = enc.encode(str);
-      const digest = await crypto.subtle.digest("SHA-256", data);
-      const bytes = new Uint8Array(digest);
-      let hex = "";
-      for (const b of bytes) {
-        hex += b.toString(16).padStart(2, "0");
+  <!-- form thêm / sửa -->
+  <div class="row">
+    <div class="third">
+      <label>Key</label>
+      <input id="fKey" type="text" placeholder="VD: NOIPRO-ABC-123">
+    </div>
+    <div class="third">
+      <label>Machine ID</label>
+      <input id="fMachine" type="text" placeholder="Mã máy (UUID)">
+    </div>
+    <div class="third">
+      <label>Hết hạn</label>
+      <input id="fExpires" type="date">
+    </div>
+  </div>
+  <div class="row">
+    <div class="half">
+      <label>Ghi chú</label>
+      <input id="fNote" type="text" placeholder="VD: Thầy A, phòng Tin...">
+    </div>
+    <div class="half" style="text-align:right;">
+      <button id="btnAddUpdate" class="primary">💾 Thêm / Cập nhật</button>
+    </div>
+  </div>
+
+  <!-- bảng -->
+  <table>
+    <thead>
+      <tr>
+        <th>Key</th>
+        <th>Machine</th>
+        <th>Hết hạn</th>
+        <th>Ghi chú</th>
+        <th>Trạng thái</th>
+        <th class="right">Thao tác</th>
+      </tr>
+    </thead>
+    <tbody id="tblBody"></tbody>
+  </table>
+
+  <div id="status" class="statusbar">Sẵn sàng.</div>
+</div>
+
+<script>
+  let licenses = [];
+
+  function cfg() {
+    const baseUrl = document.getElementById('baseUrl').value.trim().replace(/\/+$/, '');
+    const secret = document.getElementById('secret').value.trim();
+    if (!baseUrl || !secret) {
+      alert("Nhập đầy đủ API base URL và ADMIN_SECRET trước.");
+      throw new Error("missing cfg");
+    }
+    return { baseUrl, secret };
+  }
+
+  function setStatus(msg) {
+    document.getElementById('status').textContent = msg;
+  }
+
+  function render() {
+    const tbody = document.getElementById('tblBody');
+    tbody.innerHTML = "";
+
+    const search = document.getElementById('search').value.toLowerCase();
+    const sort = document.getElementById('sort').value;
+
+    let rows = licenses.slice();
+
+    if (search) {
+      rows = rows.filter(l => {
+        return (l.key || "").toLowerCase().includes(search) ||
+               (l.machineId || "").toLowerCase().includes(search) ||
+               (l.note || "").toLowerCase().includes(search);
+      });
+    }
+
+    rows.sort((a,b) => {
+      const va = (a[sort] || "").toString();
+      const vb = (b[sort] || "").toString();
+      return va.localeCompare(vb);
+    });
+
+    const today = new Date().toISOString().slice(0,10);
+
+    for (const lic of rows) {
+      const tr = document.createElement('tr');
+
+      const tdKey = document.createElement('td');
+      tdKey.textContent = lic.key || "";
+      tr.appendChild(tdKey);
+
+      const tdMach = document.createElement('td');
+      tdMach.textContent = lic.machineId || "";
+      tr.appendChild(tdMach);
+
+      const tdExp = document.createElement('td');
+      const spanExp = document.createElement('span');
+      const exp = lic.expiresAt || "";
+      spanExp.textContent = exp || "(không đặt)";
+      if (exp && exp < today) {
+        spanExp.className = "chip expired";
+      } else if (exp) {
+        spanExp.className = "chip";
       }
-      return hex;
-    }
+      tdExp.appendChild(spanExp);
+      tr.appendChild(tdExp);
 
-    function setStatus(msg, ok) {
-      const el = document.getElementById("status-line");
-      el.textContent = msg || "";
-      el.className = "status " + (ok === true ? "ok" : ok === false ? "err" : "");
-    }
+      const tdNote = document.createElement('td');
+      tdNote.textContent = lic.note || "";
+      tr.appendChild(tdNote);
 
-    function getFormData() {
-      const machine_id = document.getElementById("machine-id").value.trim();
-      const license_key = document.getElementById("license-key").value.trim();
-      const expiry = document.getElementById("expiry").value.trim();
-      const status = document.getElementById("status").value.trim();
-      const secret = document.getElementById("admin-secret").value.trim();
-      return { machine_id, license_key, expiry, status, secret };
-    }
-
-    async function handleGenerate() {
-      setStatus("", null);
-      const { machine_id, license_key, expiry, status } = getFormData();
-
-      if (!machine_id || !license_key || !expiry || !status) {
-        setStatus("Vui lòng nhập đủ Machine ID, License key, Ngày hết hạn và Trạng thái trước.", false);
-        return;
+      const tdStatus = document.createElement('td');
+      if (lic.revoked) {
+        const c = document.createElement('span');
+        c.className = "chip revoked";
+        c.textContent = "ĐÃ THU HỒI";
+        tdStatus.appendChild(c);
+      } else if (exp && exp < today) {
+        const c = document.createElement('span');
+        c.className = "chip expired";
+        c.textContent = "HẾT HẠN";
+        tdStatus.appendChild(c);
+      } else {
+        const c = document.createElement('span');
+        c.className = "chip";
+        c.textContent = "ĐANG HOẠT ĐỘNG";
+        tdStatus.appendChild(c);
       }
+      tr.appendChild(tdStatus);
 
-      const hash = await sha256Hex(license_key);
-      const obj = {
-        license_key_hash: hash,
-        machine_id: machine_id,
-        expiry: expiry,
-        status: status
+      const tdAction = document.createElement('td');
+      tdAction.className = "right";
+
+      const btnEdit = document.createElement('button');
+      btnEdit.className = "secondary";
+      btnEdit.textContent = "✏ Sửa";
+      btnEdit.onclick = () => {
+        document.getElementById('fKey').value = lic.key || "";
+        document.getElementById('fMachine').value = lic.machineId || "";
+        document.getElementById('fExpires').value = (lic.expiresAt || "").slice(0,10);
+        document.getElementById('fNote').value = lic.note || "";
+        window.scrollTo({ top: 0, behavior: "smooth" });
       };
+      tdAction.appendChild(btnEdit);
 
-      document.getElementById("json-output").value = JSON.stringify(obj, null, 2);
-      setStatus("Đã tạo JSON xem trước (hash SHA256 của license key).", true);
-      return hash;
+      const btnRevoke = document.createElement('button');
+      btnRevoke.className = lic.revoked ? "secondary" : "warn";
+      btnRevoke.textContent = lic.revoked ? "↩ Bỏ thu hồi" : "⛔ Thu hồi";
+      btnRevoke.style.marginLeft = "4px";
+      btnRevoke.onclick = () => toggleRevoke(lic.key, !lic.revoked);
+      tdAction.appendChild(btnRevoke);
+
+      const btnDel = document.createElement('button');
+      btnDel.className = "danger";
+      btnDel.textContent = "🗑 Xóa";
+      btnDel.style.marginLeft = "4px";
+      btnDel.onclick = () => deleteLicense(lic.key);
+      tdAction.appendChild(btnDel);
+
+      tr.appendChild(tdAction);
+
+      tbody.appendChild(tr);
     }
+  }
 
-    async function handleSend() {
-      const btn = document.getElementById("btn-send");
-      btn.disabled = true;
-      setStatus("Đang xử lý, vui lòng đợi...", null);
-
-      try {
-        const { machine_id, license_key, expiry, status, secret } = getFormData();
-
-        if (!machine_id || !license_key || !expiry || !status || !secret) {
-          setStatus("Vui lòng nhập đủ tất cả các ô (gồm cả Admin secret).", false);
-          btn.disabled = false;
-          return;
-        }
-
-        // Tính hash giống phần Generate
-        const license_key_hash = await sha256Hex(license_key);
-
-        // cập nhật ô JSON xem trước luôn cho dễ nhìn
-        const preview = {
-          license_key_hash,
-          machine_id,
-          expiry,
-          status
-        };
-        document.getElementById("json-output").value = JSON.stringify(preview, null, 2);
-
-        // Gửi POST tới /api/add
-        const resp = await fetch("/api/add", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            secret,
-            machine_id,
-            license_key_hash,
-            expiry,
-            status
-          })
-        });
-
-        const data = await resp.json().catch(() => ({}));
-
-        if (!resp.ok) {
-          setStatus(
-            "Lỗi khi ghi license lên GitHub: " +
-              (data.error || resp.status + " " + resp.statusText),
-            false
-          );
-          console.error("API /api/add error:", data);
-          btn.disabled = false;
-          return;
-        }
-
-        if (data && data.success) {
-          setStatus(
-            "Đã ghi / cập nhật license thành công lên GitHub! (commit: " +
-              (data.commit || "không rõ") +
-              ")",
-            true
-          );
-        } else {
-          setStatus("API trả về nhưng không thành công: " + JSON.stringify(data), false);
-        }
-      } catch (err) {
-        console.error(err);
-        setStatus("Lỗi không xác định: " + err, false);
-      } finally {
-        btn.disabled = false;
-      }
+  async function loadLicenses() {
+    let c;
+    try { c = cfg(); } catch { return; }
+    setStatus("Đang tải danh sách...");
+    document.getElementById('btnLoad').disabled = true;
+    try {
+      const url = `${c.baseUrl}/api/admin?secret=${encodeURIComponent(c.secret)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Server ok=false");
+      licenses = data.licenses || [];
+      render();
+      setStatus(`Đã tải ${licenses.length} license.`);
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi tải danh sách: " + err.message);
+      setStatus("Lỗi tải danh sách.");
+    } finally {
+      document.getElementById('btnLoad').disabled = false;
     }
+  }
 
-    function handleClear() {
-      document.getElementById("machine-id").value = "";
-      document.getElementById("license-key").value = "";
-      document.getElementById("expiry").value = "";
-      document.getElementById("status").value = "active";
-      // không xoá admin-secret để bạn đỡ phải gõ lại
-      document.getElementById("json-output").value = "";
-      setStatus("", null);
+  async function addOrUpdateLicense() {
+    let c;
+    try { c = cfg(); } catch { return; }
+
+    const key = document.getElementById('fKey').value.trim();
+    const machine = document.getElementById('fMachine').value.trim();
+    const exp = document.getElementById('fExpires').value; // yyyy-mm-dd
+    const note = document.getElementById('fNote').value.trim();
+
+    if (!key) { alert("Key không được bỏ trống."); return; }
+    if (!machine) { alert("MachineId không được bỏ trống."); return; }
+
+    const expiresAt = exp || "";
+
+    setStatus("Đang gửi lên server...");
+    document.getElementById('btnAddUpdate').disabled = true;
+    try {
+      const url = `${c.baseUrl}/api/add?secret=${encodeURIComponent(c.secret)}`
+        + `&key=${encodeURIComponent(key)}`
+        + `&machineId=${encodeURIComponent(machine)}`
+        + `&expiresAt=${encodeURIComponent(expiresAt)}`
+        + `&note=${encodeURIComponent(note)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Server ok=false");
+      setStatus("Đã thêm / cập nhật. Đang reload...");
+      await loadLicenses();
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi thêm/cập nhật: " + err.message);
+      setStatus("Lỗi thêm/cập nhật.");
+    } finally {
+      document.getElementById('btnAddUpdate').disabled = false;
     }
+  }
 
-    document.getElementById("btn-generate").addEventListener("click", () => {
-      handleGenerate();
-    });
+  async function deleteLicense(key) {
+    if (!confirm("Xóa license với key:\n" + key + " ?")) return;
+    let c;
+    try { c = cfg(); } catch { return; }
+    setStatus("Đang xóa...");
+    try {
+      const res = await fetch(`${c.baseUrl}/api/admin?secret=${encodeURIComponent(c.secret)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", key })
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Server ok=false");
+      setStatus("Đã xóa. Đang reload...");
+      await loadLicenses();
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi xóa license: " + err.message);
+      setStatus("Lỗi xóa license.");
+    }
+  }
 
-    document.getElementById("btn-send").addEventListener("click", () => {
-      handleSend();
-    });
+  async function toggleRevoke(key, revoke) {
+    let c;
+    try { c = cfg(); } catch { return; }
+    if (revoke && !confirm("Thu hồi license này? Người dùng sẽ mất kích hoạt khi kiểm tra lại.")) return;
+    setStatus(revoke ? "Đang thu hồi..." : "Đang bỏ thu hồi...");
+    try {
+      const res = await fetch(`${c.baseUrl}/api/admin?secret=${encodeURIComponent(c.secret)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: revoke ? "revoke" : "unrevoke", key })
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Server ok=false");
+      setStatus("OK. Đang reload...");
+      await loadLicenses();
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi thu hồi / bỏ thu hồi: " + err.message);
+      setStatus("Lỗi thu hồi / bỏ thu hồi.");
+    }
+  }
 
-    document.getElementById("btn-clear").addEventListener("click", () => {
-      handleClear();
-    });
-  </script>
+  document.getElementById('btnLoad').onclick = loadLicenses;
+  document.getElementById('btnAddUpdate').onclick = addOrUpdateLicense;
+  document.getElementById('search').oninput = render;
+  document.getElementById('sort').onchange = render;
+</script>
 </body>
 </html>
