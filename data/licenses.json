@@ -6,9 +6,9 @@
       "expiresAt": "2026-12-31",
       "note": "máy nhà",
       "createdAt": "2025-12-03T00:31:20.833Z",
-      "updatedAt": "2025-12-03T01:26:16.567Z",
-      "revoked": false,
-      "revokedAt": "2025-12-03T01:25:20.047Z"
+      "updatedAt": "2025-12-03T01:39:04.539Z",
+      "revoked": true,
+      "revokedAt": "2025-12-03T01:39:04.539Z"
     }
   ]
 }
