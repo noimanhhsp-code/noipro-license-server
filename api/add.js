@@ -1,173 +1,110 @@
 // api/add.js
-// Thêm hoặc cập nhật license vào file licenses.json trên GitHub
-// Cho phép gọi bằng POST (body JSON) hoặc GET (query) – đều phải có ?secret=ADMIN_SECRET
-
-const LICENSE_FILE_PATH = 'data/licenses.json';
+// Thêm / cập nhật license trong data/licenses.json trên GitHub.
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
-const REPO = process.env.NOIPRO_GH_REPO;
-const TOKEN = process.env.NOIPRO_GH_TOKEN;
+const GH_REPO = process.env.NOIPRO_GH_REPO;
+const GH_TOKEN = process.env.NOIPRO_GH_TOKEN;
+const LICENSE_FILE_PATH = "data/licenses.json";
 
-const ghHeaders = {
-  'Accept': 'application/vnd.github+json',
-  'Authorization': `Bearer ${TOKEN}`,
-  'X-GitHub-Api-Version': '2022-11-28'
-};
-
-function readJsonBody(req) {
-  return new Promise((resolve, reject) => {
-    let data = '';
-
-    req.on('data', chunk => {
-      data += chunk;
-      if (data.length > 1e6) {
-        req.destroy();
-        reject(new Error('Body too large'));
-      }
-    });
-
-    req.on('end', () => {
-      if (!data) return resolve({});
-      try {
-        resolve(JSON.parse(data));
-      } catch (err) {
-        reject(err);
-      }
-    });
-
-    req.on('error', reject);
+async function githubRequest(method, path, body) {
+  const url = `https://api.github.com/repos/${GH_REPO}/contents/${path}`;
+  const res = await fetch(url, {
+    method,
+    headers: {
+      "Authorization": `Bearer ${GH_TOKEN}`,
+      "Accept": "application/vnd.github+json",
+      "User-Agent": "noipro-license-server"
+    },
+    body: body ? JSON.stringify(body) : undefined
   });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`GitHub ${method} failed: ${res.status} - ${text}`);
+  }
+  return res.json();
 }
 
-async function fetchLicensesFromGitHub() {
-  const url = `https://api.github.com/repos/${REPO}/contents/${LICENSE_FILE_PATH}`;
-  const resp = await fetch(url, { headers: ghHeaders });
-
-  if (resp.status === 404) {
-    return { licenses: [], sha: null };
-  }
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`GitHub GET failed: ${resp.status} - ${text}`);
-  }
-
-  const data = await resp.json();
-  const content = Buffer.from(data.content, data.encoding || 'base64').toString('utf8');
-
-  let parsed;
+async function loadLicenses() {
   try {
-    parsed = content ? JSON.parse(content) : { licenses: [] };
-  } catch {
-    parsed = { licenses: [] };
+    const data = await githubRequest("GET", LICENSE_FILE_PATH);
+    const content = Buffer.from(data.content, "base64").toString("utf8");
+    const json = JSON.parse(content || "{}");
+    return { json, sha: data.sha };
+  } catch (err) {
+    if (String(err).includes("404")) {
+      return { json: { licenses: [] }, sha: null };
+    }
+    throw err;
   }
-
-  const licenses = Array.isArray(parsed.licenses) ? parsed.licenses : [];
-  return { licenses, sha: data.sha };
 }
 
-async function saveLicensesToGitHub(licenses, sha) {
-  const url = `https://api.github.com/repos/${REPO}/contents/${LICENSE_FILE_PATH}`;
-
-  const jsonContent = JSON.stringify({ licenses }, null, 2);
-  const base64Content = Buffer.from(jsonContent, 'utf8').toString('base64');
-
+async function saveLicenses(json, sha) {
+  const content = Buffer.from(JSON.stringify(json, null, 2), "utf8").toString("base64");
   const body = {
-    message: 'Update licenses.json via Noipro license server',
-    content: base64Content
+    message: "Update licenses.json via add API",
+    content,
+    branch: "main"
   };
   if (sha) body.sha = sha;
-
-  const resp = await fetch(url, {
-    method: 'PUT',
-    headers: {
-      ...ghHeaders,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`GitHub PUT failed: ${resp.status} - ${text}`);
-  }
-
-  return resp.json();
+  return githubRequest("PUT", LICENSE_FILE_PATH, body);
 }
 
 module.exports = async (req, res) => {
   try {
-    if (req.method !== 'POST' && req.method !== 'GET') {
-      res.setHeader('Allow', 'POST, GET');
-      return res.status(405).json({ ok: false, error: 'Method not allowed' });
+    if (req.method !== "GET") {
+      res.status(405).json({ ok: false, error: "Method not allowed" });
+      return;
     }
 
-    if (!ADMIN_SECRET || !REPO || !TOKEN) {
-      return res.status(500).json({ ok: false, error: 'Missing environment variables' });
+    const q = req.query || {};
+    const secret = q.secret;
+    const key = (q.key || "").trim();
+    const mid = (q.machineId || q.machine || "").trim();
+    const expiresAt = q.expiresAt || "";
+    const note = q.note || "";
+
+    if (!ADMIN_SECRET || secret !== ADMIN_SECRET) {
+      res.status(401).json({ ok: false, error: "UNAUTHORIZED" });
+      return;
+    }
+    if (!key || !mid) {
+      res.status(400).json({ ok: false, error: "MISSING_KEY_OR_MACHINE" });
+      return;
     }
 
-    const { secret } = req.query || {};
-    if (!secret || secret !== ADMIN_SECRET) {
-      return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    }
+    const { json, sha } = await loadLicenses();
+    const list = json.licenses || [];
+    const now = new Date().toISOString();
 
-    let body;
-    if (req.method === 'POST') {
-      body = await readJsonBody(req);
+    const idx = list.findIndex(l => (l.key || "").trim() === key);
+    let mode = "CREATED";
+
+    if (idx >= 0) {
+      // Cập nhật license cũ
+      list[idx].machineId = mid;
+      if (expiresAt) list[idx].expiresAt = expiresAt;
+      list[idx].note = note;
+      list[idx].updatedAt = now;
+      mode = "UPDATED";
     } else {
-      // GET: đọc luôn từ query cho dễ test
-      const { key, machineId, machine, expiresAt, note } = req.query || {};
-      body = {
+      list.push({
         key,
-        machineId: machineId || machine,
+        machineId: mid,
         expiresAt,
-        note
-      };
+        note,
+        createdAt: now,
+        updatedAt: now,
+        revoked: false
+      });
     }
 
-    const { key, machineId, expiresAt, note } = body;
+    json.licenses = list;
+    await saveLicenses(json, sha);
 
-    if (!key) {
-      return res.status(400).json({ ok: false, error: 'Missing field: key' });
-    }
-
-    const { licenses, sha } = await fetchLicensesFromGitHub();
-
-    const nowIso = new Date().toISOString();
-    const idx = licenses.findIndex(lc => lc.key === key);
-
-    let mode;
-    let license;
-
-    if (idx === -1) {
-      license = {
-        key,
-        machineId: machineId || '',
-        expiresAt: expiresAt || '',
-        note: note || '',
-        createdAt: nowIso,
-        updatedAt: nowIso
-      };
-      licenses.push(license);
-      mode = 'CREATED';
-    } else {
-      const old = licenses[idx];
-      license = {
-        ...old,
-        machineId: machineId !== undefined ? machineId : old.machineId,
-        expiresAt: expiresAt !== undefined ? expiresAt : old.expiresAt,
-        note: note !== undefined ? note : old.note,
-        updatedAt: nowIso
-      };
-      licenses[idx] = license;
-      mode = 'UPDATED';
-    }
-
-    await saveLicensesToGitHub(licenses, sha);
-
-    return res.status(200).json({ ok: true, mode, license });
+    const lic = list.find(l => l.key === key);
+    res.status(200).json({ ok: true, mode, license: lic });
   } catch (err) {
-    console.error('add.js error:', err);
-    return res.status(500).json({ ok: false, error: err.message || 'Internal server error' });
+    console.error("add error:", err);
+    res.status(500).json({ ok: false, error: String(err) });
   }
 };
